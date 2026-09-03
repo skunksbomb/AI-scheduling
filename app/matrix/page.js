@@ -19,6 +19,8 @@ const QUADRANTS = [
 export default function MatrixPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleMessage, setRescheduleMessage] = useState("");
 
   async function loadTasks() {
     const res = await fetch("/api/tasks");
@@ -30,6 +32,25 @@ export default function MatrixPage() {
   useEffect(() => {
     loadTasks();
   }, []);
+
+  async function handleReschedule() {
+    setRescheduling(true);
+    setRescheduleMessage("");
+    try {
+      const res = await fetch("/api/reschedule", { method: "POST" });
+      const data = await res.json();
+      setTasks(data.tasks || []);
+      setRescheduleMessage(
+        data.rescheduled > 0
+          ? `${data.rescheduled}개 항목을 재배치했습니다.`
+          : "재배치할 놓친 일정이 없습니다."
+      );
+    } catch (err) {
+      setRescheduleMessage("재배치 중 오류가 발생했습니다: " + err.message);
+    } finally {
+      setRescheduling(false);
+    }
+  }
 
   async function toggleDone(task) {
     setTasks((prev) =>
@@ -48,7 +69,19 @@ export default function MatrixPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-6 py-12">
-      <h1 className="text-xl font-semibold text-zinc-900">아이젠하워 매트릭스</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-zinc-900">아이젠하워 매트릭스</h1>
+        <button
+          onClick={handleReschedule}
+          disabled={rescheduling}
+          className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+        >
+          {rescheduling ? "재배치 중..." : "놓친 일정 재배치"}
+        </button>
+      </div>
+      {rescheduleMessage && (
+        <p className="text-xs text-zinc-500">{rescheduleMessage}</p>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {QUADRANTS.map((q) => {
           const items = tasks.filter(

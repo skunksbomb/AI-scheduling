@@ -2,32 +2,15 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { addTasks } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
-import {
-  createEvent,
-  createAllDayEvent,
-  getBusyMinutesForDay,
-  findFreeSlot,
-} from "@/lib/googleCalendar";
-import { todayStr, addDays } from "@/lib/dates";
-
-function quadrantRank(item) {
-  if (item.urgent && item.important) return 0; // 긴급 & 중요
-  if (!item.urgent && item.important) return 1; // 중요 & 안 긴급
-  if (item.urgent && !item.important) return 2; // 긴급 & 안 중요
-  return 3; // 안 긴급 & 안 중요
-}
+import { createEvent, createAllDayEvent } from "@/lib/googleCalendar";
+import { todayStr, addDays, toLocalDateTime } from "@/lib/dates";
+import { quadrantRank, createDayBusyCache, placeInEarliestSlot } from "@/lib/scheduling";
 
 function parseStartTime(startTime) {
   const match = String(startTime).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
   if (!match) return null;
   const [, dateStr, hh, mm] = match;
   return { dateStr, minutes: Number(hh) * 60 + Number(mm) };
-}
-
-function toLocalDateTime(dateStr, minutesFromMidnight) {
-  const hh = String(Math.floor(minutesFromMidnight / 60)).padStart(2, "0");
-  const mm = String(minutesFromMidnight % 60).padStart(2, "0");
-  return `${dateStr}T${hh}:${mm}:00`;
 }
 
 export async function POST(request) {
@@ -49,25 +32,7 @@ export async function POST(request) {
     (a, b) => quadrantRank(a) - quadrantRank(b)
   );
 
-  const busyCache = new Map(); // dateStr -> busy 구간 배열(분 단위), 이번 배치에서 누적
-
-  async function getBusyForDay(dateStr) {
-    if (!busyCache.has(dateStr)) {
-      const busy = await getBusyMinutesForDay(dateStr);
-
-      if (dateStr === todayStr()) {
-        // 오늘은 이미 지난 시각에 배치되지 않도록 자정~현재까지를 busy로 막는다.
-        const now = new Date();
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const roundedNow = Math.ceil(nowMinutes / 15) * 15;
-        busy.push({ start: 0, end: roundedNow });
-      }
-
-      busyCache.set(dateStr, busy);
-    }
-    return busyCache.get(dateStr);
-  }
-
+  const { getBusyForDay } = createDayBusyCache();
   const newTasks = [];
 
   for (const item of sortedItems) {
@@ -119,33 +84,22 @@ export async function POST(request) {
           base.deadlineEventId = deadlineEvent.id;
         }
 
-        const searchEnd = base.deadline ?? todayStr();
-        let day = todayStr();
-        let placed = false;
+        const placement = await placeInEarliestSlot({
+          title: base.title,
+          estimatedMinutes: base.estimatedMinutes,
+          fromDateStr: todayStr(),
+          toDateStr: base.deadline ?? todayStr(),
+          getBusyForDay,
+        });
 
-        while (!placed && day <= searchEnd) {
-          const busy = await getBusyForDay(day);
-          const slot = findFreeSlot(busy, base.estimatedMinutes);
-
-          if (slot) {
-            const startISO = toLocalDateTime(day, slot.start);
-            const endISO = toLocalDateTime(day, slot.end);
-            const event = await createEvent({ title: base.title, startISO, endISO });
-
-            base.scheduledStart = startISO;
-            base.scheduledEnd = endISO;
-            base.googleEventId = event.id;
-            busy.push(slot);
-            placed = true;
-          } else {
-            day = addDays(day, 1);
-          }
-        }
-
-        if (!placed) {
+        if (placement) {
+          base.scheduledStart = placement.scheduledStart;
+          base.scheduledEnd = placement.scheduledEnd;
+          base.googleEventId = placement.googleEventId;
+        } else {
           base.scheduleError = base.deadline
             ? `오늘부터 ${base.deadline}까지 빈 시간이 없어 배치하지 못했습니다.`
-            : `${searchEnd}에 빈 시간이 없어 배치하지 못했습니다.`;
+            : `오늘 빈 시간이 없어 배치하지 못했습니다.`;
         }
       }
     } catch (err) {
