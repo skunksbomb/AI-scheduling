@@ -51,7 +51,13 @@ Vercel에 배포하면 서버 파일 시스템이 유지되지 않기 때문에,
      data jsonb not null,
      created_at timestamptz not null default now()
    );
+
+   create table app_state (
+     key text primary key,
+     value jsonb not null
+   );
    ```
+   (`app_state`는 "마지막으로 Google과 동기화한 시각" 같은 앱 전역 상태 저장용)
 3. 왼쪽 메뉴 **Project Settings > API**에서 **Project URL**과
    **service_role** 키(비밀 키, anon 키 아님)를 복사
 4. `.env.local`의 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`에 채워 넣기
