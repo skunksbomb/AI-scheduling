@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getTasks, updateTask } from "@/lib/store";
+import { updateTask } from "@/lib/store";
 import { completeTask, reopenTask } from "@/lib/googleTasks";
+import { syncWithGoogle } from "@/lib/sync";
 
 export async function GET() {
-  return NextResponse.json({ tasks: await getTasks() });
+  return NextResponse.json({ tasks: await syncWithGoogle() });
 }
 
 export async function PATCH(request) {
