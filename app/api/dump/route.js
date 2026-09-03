@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { addTasks } from "@/lib/store";
+import { addTasks, getTasks } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
 import { createEvent, createAllDayEvent } from "@/lib/googleCalendar";
+import { createTask } from "@/lib/googleTasks";
 import { todayStr, addDays, toLocalDateTime } from "@/lib/dates";
-import { quadrantRank, createDayBusyCache, placeInEarliestSlot } from "@/lib/scheduling";
+import { quadrantRank, buildDayCounts, pickDayWithCapacity } from "@/lib/scheduling";
+
+const MAX_TASKS_PER_DAY = 4;
 
 function parseStartTime(startTime) {
   const match = String(startTime).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
@@ -27,12 +30,12 @@ export async function POST(request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
-  // 중요한 일부터 먼저 빈 시간을 차지하도록 아이젠하워 우선순위로 정렬
+  // 중요한 일부터 먼저 빈 자리를 차지하도록 아이젠하워 우선순위로 정렬
   const sortedItems = [...parsedItems].sort(
     (a, b) => quadrantRank(a) - quadrantRank(b)
   );
 
-  const { getBusyForDay } = createDayBusyCache();
+  const dayCounts = buildDayCounts(getTasks());
   const newTasks = [];
 
   for (const item of sortedItems) {
@@ -47,16 +50,20 @@ export async function POST(request) {
       done: false,
       rawText: text,
       createdAt: new Date().toISOString(),
+      // event(약속) 전용
       scheduledStart: null,
       scheduledEnd: null,
       googleEventId: null,
+      // task(할 일) 전용
       deadlineEventId: null,
+      scheduledDate: null,
+      googleTaskId: null,
       scheduleError: null,
     };
 
     try {
       if (base.type === "event" && item.startTime) {
-        // 사람과의 약속 등 시각이 정해진 항목: 지정된 시간에 그대로 배치
+        // 사람과의 약속 등 시각이 정해진 항목: 지정된 시간에 '일정'으로 그대로 배치
         const parsedStart = parseStartTime(item.startTime);
         if (!parsedStart) throw new Error("시간 형식을 해석하지 못했습니다.");
 
@@ -69,12 +76,10 @@ export async function POST(request) {
         base.scheduledStart = startISO;
         base.scheduledEnd = endISO;
         base.googleEventId = event.id;
-
-        const busy = await getBusyForDay(parsedStart.dateStr);
-        busy.push({ start: parsedStart.minutes, end: endMinutes });
       } else {
-        // 마감일만 있는 할 일: 마감일에는 "마감" 표시(하루 종일 이벤트)만 남기고,
-        // 실제로 할 일을 처리할 시간은 오늘부터 마감일까지 중 가장 빠른 빈 시간에 미리 배치한다.
+        // 마감일이 있는 할 일: 마감일에 '일정'으로 마감 표시(하루 종일)를 남기고,
+        // 실제 작업 자체는 '할 일'(Google Tasks)로 오늘~마감일 사이 하루 최대
+        // MAX_TASKS_PER_DAY개까지만 분산해서 등록한다. 시간은 정하지 않는다.
         if (base.deadline) {
           const deadlineEvent = await createAllDayEvent({
             title: `🔔 마감: ${base.title}`,
@@ -84,22 +89,21 @@ export async function POST(request) {
           base.deadlineEventId = deadlineEvent.id;
         }
 
-        const placement = await placeInEarliestSlot({
-          title: base.title,
-          estimatedMinutes: base.estimatedMinutes,
+        const toDateStr = base.deadline ?? todayStr();
+        const day = pickDayWithCapacity({
           fromDateStr: todayStr(),
-          toDateStr: base.deadline ?? todayStr(),
-          getBusyForDay,
+          toDateStr,
+          maxPerDay: MAX_TASKS_PER_DAY,
+          dayCounts,
         });
 
-        if (placement) {
-          base.scheduledStart = placement.scheduledStart;
-          base.scheduledEnd = placement.scheduledEnd;
-          base.googleEventId = placement.googleEventId;
+        if (day) {
+          const task = await createTask({ title: base.title, dueDateStr: day });
+          base.scheduledDate = day;
+          base.googleTaskId = task.id;
+          dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
         } else {
-          base.scheduleError = base.deadline
-            ? `오늘부터 ${base.deadline}까지 빈 시간이 없어 배치하지 못했습니다.`
-            : `오늘 빈 시간이 없어 배치하지 못했습니다.`;
+          base.scheduleError = `오늘부터 ${toDateStr}까지 하루 ${MAX_TASKS_PER_DAY}개씩 이미 꽉 찼습니다.`;
         }
       }
     } catch (err) {

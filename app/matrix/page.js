@@ -3,10 +3,16 @@
 import { useEffect, useState } from "react";
 
 function formatScheduled(task) {
-  if (!task.scheduledStart) return null;
-  const [datePart, timePart] = task.scheduledStart.split("T");
-  const [, mo, da] = datePart.split("-");
-  return `${mo}/${da} ${timePart.slice(0, 5)}`;
+  if (task.type === "event" && task.scheduledStart) {
+    const [datePart, timePart] = task.scheduledStart.split("T");
+    const [, mo, da] = datePart.split("-");
+    return `${mo}/${da} ${timePart.slice(0, 5)}`;
+  }
+  if (task.type === "task" && task.scheduledDate) {
+    const [, mo, da] = task.scheduledDate.split("-");
+    return `${mo}/${da} 하루종일`;
+  }
+  return null;
 }
 
 const QUADRANTS = [
@@ -120,7 +126,8 @@ export default function MatrixPage() {
                       </span>
                       {formatScheduled(task) && (
                         <span className="text-xs text-emerald-600">
-                          캘린더 배치됨: {formatScheduled(task)}
+                          {task.type === "event" ? "일정 등록됨" : "할 일 등록됨"}:{" "}
+                          {formatScheduled(task)}
                         </span>
                       )}
                       {task.scheduleError && (

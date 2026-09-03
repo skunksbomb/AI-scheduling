@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
 import { getTasks, updateTask } from "@/lib/store";
-import { deleteEvent } from "@/lib/googleCalendar";
+import { deleteTask, createTask } from "@/lib/googleTasks";
 import { todayStr, addDays } from "@/lib/dates";
-import { quadrantRank, createDayBusyCache, placeInEarliestSlot } from "@/lib/scheduling";
+import { quadrantRank, buildDayCounts, pickDayWithCapacity } from "@/lib/scheduling";
 
-function nowLocalStr() {
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  return `${todayStr()}T${hh}:${mm}:00`;
-}
+const MAX_TASKS_PER_DAY = 4;
 
-// 완료 체크가 안 됐는데 배치된 시간이 이미 지나버린 '할 일'만 재배치 대상.
+// 완료 체크가 안 됐는데 예정일이 이미 지나버린 '할 일'만 재배치 대상.
 // 시각이 정해진 '일정'(다른 사람과의 약속 등)은 재배치하지 않는다.
 function findMissedTasks(tasks) {
-  const now = nowLocalStr();
+  const today = todayStr();
   return tasks
-    .filter((t) => t.type === "task" && !t.done && t.scheduledEnd && t.scheduledEnd < now)
+    .filter((t) => t.type === "task" && !t.done && t.scheduledDate && t.scheduledDate < today)
     .sort((a, b) => quadrantRank(a) - quadrantRank(b));
 }
 
@@ -28,40 +23,39 @@ export async function POST() {
     return NextResponse.json({ rescheduled: 0, tasks });
   }
 
-  const { getBusyForDay } = createDayBusyCache();
   const today = todayStr();
+  const dayCounts = buildDayCounts(tasks.filter((t) => !missed.includes(t)));
   let rescheduled = 0;
 
   for (const task of missed) {
-    if (task.googleEventId) {
-      await deleteEvent(task.googleEventId);
+    if (task.googleTaskId) {
+      await deleteTask(task.googleTaskId);
     }
 
     const toDateStr =
       task.deadline && task.deadline >= today ? task.deadline : addDays(today, 7);
 
-    const placement = await placeInEarliestSlot({
-      title: task.title,
-      estimatedMinutes: task.estimatedMinutes,
+    const day = pickDayWithCapacity({
       fromDateStr: today,
       toDateStr,
-      getBusyForDay,
+      maxPerDay: MAX_TASKS_PER_DAY,
+      dayCounts,
     });
 
-    if (placement) {
+    if (day) {
+      const googleTask = await createTask({ title: task.title, dueDateStr: day });
       updateTask(task.id, {
-        scheduledStart: placement.scheduledStart,
-        scheduledEnd: placement.scheduledEnd,
-        googleEventId: placement.googleEventId,
+        scheduledDate: day,
+        googleTaskId: googleTask.id,
         scheduleError: null,
       });
+      dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
       rescheduled += 1;
     } else {
       updateTask(task.id, {
-        scheduledStart: null,
-        scheduledEnd: null,
-        googleEventId: null,
-        scheduleError: `${today}부터 ${toDateStr}까지 빈 시간이 없어 재배치하지 못했습니다.`,
+        scheduledDate: null,
+        googleTaskId: null,
+        scheduleError: `${today}부터 ${toDateStr}까지 하루 ${MAX_TASKS_PER_DAY}개씩 이미 꽉 찼습니다.`,
       });
     }
   }

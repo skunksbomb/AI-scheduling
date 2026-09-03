@@ -21,7 +21,8 @@
 ## Google Calendar 연동 설정 (최초 1회)
 
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 새 프로젝트 생성
-2. "API 및 서비스 > 라이브러리"에서 **Google Calendar API** 검색 후 사용 설정
+2. "API 및 서비스 > 라이브러리"에서 **Google Calendar API**와 **Google Tasks API**를
+   각각 검색해서 둘 다 사용 설정
 3. "API 및 서비스 > OAuth 동의 화면"에서 User Type을 **외부(External)**로 설정하고
    테스트 사용자로 본인 구글 계정 이메일 추가
 4. "API 및 서비스 > 사용자 인증 정보"에서 **OAuth 클라이언트 ID 만들기** →
@@ -44,12 +45,11 @@
 
 ## 다음 단계 (예정)
 
-1. **Google Calendar 연동** — 인증 코드/스크립트는 준비됨 (`lib/googleCalendar.js`, `scripts/google-auth.js`).
-   위 "Google Calendar 연동 설정"을 완료하면, 다음으로 매트릭스에 분류된 할 일을
-   캘린더 빈 시간에 자동 배치하는 로직을 연결할 예정
-2. **실제 데이터베이스로 교체** — Vercel은 파일 시스템이 유지되지 않으므로
+1. ~~Google Calendar 연동~~ — 완료. 마감일은 Calendar에 하루종일 '일정'으로,
+   실제 할 일은 Google Tasks에 '할 일'로 등록 (하루 최대 4개 분산)
+2. ~~미완료 항목 재배치~~ — 완료. 매트릭스 페이지의 "놓친 일정 재배치" 버튼
+3. **실제 데이터베이스로 교체** — Vercel은 파일 시스템이 유지되지 않으므로
    배포 전에 `data/tasks.json` 대신 Supabase(무료) 같은 DB로 교체
-3. **미완료 항목 재배치** — 완료 체크가 안 된 항목을 감지해서 AI가 다시 빈 시간에 배치
 4. **PWA 설정** — 핸드폰 홈 화면에 설치 가능하도록 manifest 추가
 5. **Vercel 배포** — 무료 플랜으로 배포해서 핸드폰 브라우저로 접속
 
