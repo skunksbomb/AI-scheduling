@@ -1,27 +1,60 @@
-import Link from "next/link";
+import { listEvents } from "@/lib/googleCalendar";
+import { todayStr } from "@/lib/dates";
 
-export default function Home() {
+const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function formatTimeRange(event) {
+  if (event.start.date) return "하루종일";
+  const start = new Date(event.start.dateTime);
+  const end = new Date(event.end.dateTime);
+  const fmt = (d) =>
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${fmt(start)} - ${fmt(end)}`;
+}
+
+export default async function Home() {
+  const today = todayStr();
+  const weekday = WEEKDAY_NAMES[new Date().getDay()];
+
+  let events = [];
+  let error = null;
+  try {
+    events = await listEvents(`${today}T00:00:00+09:00`, `${today}T23:59:59+09:00`);
+  } catch (err) {
+    error = err.message;
+  }
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-24 text-center">
-      <h1 className="text-2xl font-semibold text-zinc-900">AI 스케줄링</h1>
-      <p className="max-w-md text-zinc-600">
-        Dump 페이지에 할 일을 적으면 AI가 아이젠하워 매트릭스에 분류하고,
-        빈 시간에 자동으로 배치해줍니다.
-      </p>
-      <div className="flex gap-4">
-        <Link
-          href="/dump"
-          className="rounded-full bg-zinc-900 px-5 py-3 text-sm font-medium text-white hover:bg-zinc-700"
-        >
-          Dump 페이지로 이동
-        </Link>
-        <Link
-          href="/matrix"
-          className="rounded-full border border-zinc-300 px-5 py-3 text-sm font-medium text-zinc-900 hover:bg-zinc-100"
-        >
-          매트릭스 보기
-        </Link>
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-6 py-12">
+      <div>
+        <h1 className="text-xl font-semibold text-zinc-900">오늘 일정</h1>
+        <p className="text-sm text-zinc-500">
+          {today} ({weekday})
+        </p>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          캘린더를 불러오지 못했습니다: {error}
+        </p>
+      )}
+
+      {!error && events.length === 0 && (
+        <p className="text-sm text-zinc-400">오늘 등록된 일정이 없습니다.</p>
+      )}
+
+      {!error && events.length > 0 && (
+        <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+          {events.map((event) => (
+            <li key={event.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+              <span className="w-28 shrink-0 font-mono text-xs text-zinc-500">
+                {formatTimeRange(event)}
+              </span>
+              <span className="text-zinc-800">{event.summary}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
       <body className="min-h-full flex flex-col bg-zinc-50">
         <nav className="border-b border-zinc-200 bg-white px-6 py-3 flex gap-6 text-sm font-medium">
           <Link href="/" className="text-zinc-900 hover:text-zinc-600">
-            홈
+            일정
           </Link>
           <Link href="/dump" className="text-zinc-900 hover:text-zinc-600">
             Dump

@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+function formatScheduled(task) {
+  if (!task.scheduledStart) return null;
+  const [datePart, timePart] = task.scheduledStart.split("T");
+  const [, mo, da] = datePart.split("-");
+  return `${mo}/${da} ${timePart.slice(0, 5)}`;
+}
+
 const QUADRANTS = [
   { key: "do", label: "긴급 & 중요 (즉시 처리)", urgent: true, important: true },
   { key: "schedule", label: "중요 & 안 긴급 (일정 잡기)", urgent: false, important: true },
@@ -68,11 +75,24 @@ export default function MatrixPage() {
                       onChange={() => toggleDone(task)}
                       className="mt-0.5"
                     />
-                    <span className={task.done ? "line-through text-zinc-400" : ""}>
-                      {task.title}
-                      {task.deadline && (
-                        <span className="ml-2 text-xs text-zinc-400">
-                          ~{task.deadline}
+                    <span className="flex flex-col">
+                      <span className={task.done ? "line-through text-zinc-400" : ""}>
+                        {task.type === "event" ? "📅 " : ""}
+                        {task.title}
+                        {task.deadline && (
+                          <span className="ml-2 text-xs text-zinc-400">
+                            ~{task.deadline}
+                          </span>
+                        )}
+                      </span>
+                      {formatScheduled(task) && (
+                        <span className="text-xs text-emerald-600">
+                          캘린더 배치됨: {formatScheduled(task)}
+                        </span>
+                      )}
+                      {task.scheduleError && (
+                        <span className="text-xs text-red-500">
+                          {task.scheduleError}
                         </span>
                       )}
                     </span>
