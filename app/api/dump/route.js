@@ -35,7 +35,7 @@ export async function POST(request) {
     (a, b) => quadrantRank(a) - quadrantRank(b)
   );
 
-  const dayCounts = buildDayCounts(getTasks());
+  const dayCounts = buildDayCounts(await getTasks());
   const newTasks = [];
 
   for (const item of sortedItems) {
@@ -113,6 +113,6 @@ export async function POST(request) {
     newTasks.push(base);
   }
 
-  const tasks = addTasks(newTasks);
+  const tasks = await addTasks(newTasks);
   return NextResponse.json({ tasks });
 }

@@ -16,7 +16,7 @@ function findMissedTasks(tasks) {
 }
 
 export async function POST() {
-  const tasks = getTasks();
+  const tasks = await getTasks();
   const missed = findMissedTasks(tasks);
 
   if (missed.length === 0) {
@@ -44,7 +44,7 @@ export async function POST() {
 
     if (day) {
       const googleTask = await createTask({ title: task.title, dueDateStr: day });
-      updateTask(task.id, {
+      await updateTask(task.id, {
         scheduledDate: day,
         googleTaskId: googleTask.id,
         scheduleError: null,
@@ -52,7 +52,7 @@ export async function POST() {
       dayCounts.set(day, (dayCounts.get(day) ?? 0) + 1);
       rescheduled += 1;
     } else {
-      updateTask(task.id, {
+      await updateTask(task.id, {
         scheduledDate: null,
         googleTaskId: null,
         scheduleError: `${today}부터 ${toDateStr}까지 하루 ${MAX_TASKS_PER_DAY}개씩 이미 꽉 찼습니다.`,
@@ -60,5 +60,5 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ rescheduled, tasks: getTasks() });
+  return NextResponse.json({ rescheduled, tasks: await getTasks() });
 }
