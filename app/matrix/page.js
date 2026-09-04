@@ -69,7 +69,12 @@ export default function MatrixPage() {
   }
 
   async function handleDelete(task) {
-    if (!confirm(`"${task.title}"을(를) 삭제할까요? 구글 캘린더/할 일에서도 삭제됩니다.`)) return;
+    if (
+      !confirm(
+        `"${task.title}"을(를) 삭제할까요? 구글 할 일에서도 삭제됩니다.\n(마감 표시 일정은 캘린더에 그대로 남아요)`
+      )
+    )
+      return;
 
     const prevTasks = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));

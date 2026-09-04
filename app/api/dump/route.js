@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
 import { getUserContext } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
-import { createEvent, createAllDayEvent } from "@/lib/googleCalendar";
-import { addDays, toLocalDateTime, formatKoreanDate, formatMinutesAsTime } from "@/lib/dates";
 import { quadrantRank } from "@/lib/scheduling";
-import { buildTaskDraft } from "@/lib/placement";
-
-function parseStartTime(startTime) {
-  const match = String(startTime).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
-  if (!match) return null;
-  const [, dateStr, hh, mm] = match;
-  return { dateStr, minutes: Number(hh) * 60 + Number(mm) };
-}
+import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
 
 export async function POST(request) {
   const { text } = await request.json();
@@ -34,48 +25,20 @@ export async function POST(request) {
   const eventItems = sortedItems.filter((item) => item.type === "event" && item.startTime);
   const taskItems = sortedItems.filter((item) => !(item.type === "event" && item.startTime));
 
-  const summary = [];
+  // 일정(event)도 할일과 마찬가지로 곧바로 커밋하지 않고, 미리보기(draft)로만
+  // 보여준다 — AI 파싱이 항상 맞는 건 아니라서 사용자 확인을 거친다.
+  const eventDraftItems = buildEventDraftItems(eventItems);
 
-  // 일정(event)은 사용자가 날짜/시간을 직접 말한 것이라 모호함이 없으므로
-  // 지금처럼 즉시 커밋한다 (확인 절차 대상 아님).
-  for (const item of eventItems) {
-    const title = item.title ?? text;
-    const estimatedMinutes = item.estimatedMinutes ?? 60;
-    try {
-      if (!item.hasTime) {
-        const dateMatch = String(item.startTime).match(/^(\d{4}-\d{2}-\d{2})/);
-        if (!dateMatch) throw new Error("날짜 형식을 해석하지 못했습니다.");
-        const dateStr = dateMatch[1];
-        await createAllDayEvent({ title, dateStr, nextDateStr: addDays(dateStr, 1) });
-        summary.push(`📅 ${formatKoreanDate(dateStr)} 하루종일 "${title}" 일정 배치 완료`);
-      } else {
-        const parsedStart = parseStartTime(item.startTime);
-        if (!parsedStart) throw new Error("시간 형식을 해석하지 못했습니다.");
-
-        const endMinutes = parsedStart.minutes + estimatedMinutes;
-        const startISO = toLocalDateTime(parsedStart.dateStr, parsedStart.minutes);
-        const endISO = toLocalDateTime(parsedStart.dateStr, endMinutes);
-
-        await createEvent({ title, startISO, endISO });
-        summary.push(
-          `📅 ${formatKoreanDate(parsedStart.dateStr)} ${formatMinutesAsTime(
-            parsedStart.minutes
-          )}~${formatMinutesAsTime(endMinutes)} "${title}" 일정 배치 완료`
-        );
-      }
-    } catch {
-      summary.push(`⚠️ "${title}" 일정 배치 실패`);
-    }
-  }
-
-  // 할일(task)은 AI가 실제 캘린더를 보고 배치를 제안하게 하고, 아직 아무데도
-  // 쓰지 않은 채 사용자 확인용 draft로만 돌려준다. 확정은 /api/dump/confirm에서.
-  let taskDraft = null;
-
+  let taskDraftItems = [];
+  let placementFallback = false;
   if (taskItems.length > 0) {
-    const { items, placementFallback } = await buildTaskDraft({ taskItems, userContext });
-    taskDraft = { items, placementFallback, rawText: text };
+    const result = await buildTaskDraft({ taskItems, userContext });
+    taskDraftItems = result.items;
+    placementFallback = result.placementFallback;
   }
 
-  return NextResponse.json({ uncertain, reason, summary, taskDraft });
+  const allItems = [...eventDraftItems, ...taskDraftItems];
+  const taskDraft = allItems.length > 0 ? { items: allItems, placementFallback, rawText: text } : null;
+
+  return NextResponse.json({ uncertain, reason, taskDraft });
 }

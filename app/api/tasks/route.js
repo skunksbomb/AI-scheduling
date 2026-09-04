@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTasks, updateTask, deleteTaskRow } from "@/lib/store";
 import { completeTask, reopenTask, deleteTask as deleteGoogleTask } from "@/lib/googleTasks";
-import { deleteEvent } from "@/lib/googleCalendar";
 import { syncWithGoogle } from "@/lib/sync";
 
 export async function GET() {
@@ -19,8 +18,10 @@ export async function DELETE(request) {
     return NextResponse.json({ error: "해당 할 일을 찾을 수 없습니다." }, { status: 404 });
   }
 
+  // 할 일(Google Task)만 지운다. 마감 표시(🔔) 캘린더 이벤트는 일부러 남긴다 —
+  // 할 일을 지웠다고 마감 추적까지 사라지면 안 되기 때문. 마감을 없애려면
+  // 캘린더에서 그 이벤트를 직접 지우면 되고, 그러면 "다가오는 마감"에서도 사라진다.
   if (task.googleTaskId) await deleteGoogleTask(task.googleTaskId);
-  if (task.deadlineEventId) await deleteEvent(task.deadlineEventId);
   await deleteTaskRow(id);
 
   return NextResponse.json({ tasks: await getTasks() });

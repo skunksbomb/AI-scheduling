@@ -89,13 +89,14 @@ export default function DumpPage() {
       setWarning(
         data.uncertain ? data.reason || "AI가 일부 항목의 배치를 확신하지 못했습니다." : null
       );
-      showToast(data.summary);
 
       if (data.taskDraft) {
         setTaskDraft(data.taskDraft);
         setStatus("draft");
       } else {
-        setStatus("done");
+        // 아무것도 안 잡혔으면(진짜 의미없는 텍스트 등) "완료"라고 하면 안 된다 —
+        // 위 경고 배너가 이유를 이미 보여주고 있으니 그냥 대기 상태로 둔다.
+        setStatus("idle");
       }
     } catch (err) {
       setErrorMessage(err.message);
@@ -228,7 +229,7 @@ export default function DumpPage() {
 
       {status === "done" && (
         <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-          할 일이 매트릭스에 추가되었습니다.{" "}
+          배치가 완료됐습니다.{" "}
           <Link href="/matrix" className="underline">
             매트릭스에서 확인하기
           </Link>
@@ -237,7 +238,8 @@ export default function DumpPage() {
 
       {warning && (
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          ⚠️ {warning} 배치가 부정확할 수 있으니 매트릭스에서 확인해주세요.
+          ⚠️ {warning}
+          {taskDraft ? " 아래 배치 내용을 확인하고 확정해주세요." : " 조금 더 구체적으로 다시 적어주세요."}
         </p>
       )}
 
@@ -254,6 +256,7 @@ export default function DumpPage() {
               <li key={i} className="flex flex-col">
                 <span>{item.displayLine}</span>
                 {item.reasoning && <span className="text-xs text-zinc-400">{item.reasoning}</span>}
+                {item.deadlineNote && <span className="text-sm text-zinc-800">{item.deadlineNote}</span>}
                 {item.warning && <span className="text-xs text-amber-600">{item.warning}</span>}
               </li>
             ))}
