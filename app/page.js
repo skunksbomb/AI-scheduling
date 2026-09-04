@@ -1,6 +1,7 @@
 import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueOn } from "@/lib/googleTasks";
-import { todayStr } from "@/lib/dates";
+import { getTasks } from "@/lib/store";
+import { todayStr, formatKoreanDate } from "@/lib/dates";
 
 const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -13,18 +14,30 @@ function formatTimeRange(event) {
   return `${fmt(start)} - ${fmt(end)}`;
 }
 
+function formatDday(deadline, today) {
+  const diffDays = Math.round(
+    (new Date(deadline) - new Date(today)) / (24 * 60 * 60 * 1000)
+  );
+  if (diffDays === 0) return "D-day";
+  return `D-${diffDays}`;
+}
+
 export default async function Home() {
   const today = todayStr();
   const weekday = WEEKDAY_NAMES[new Date().getDay()];
 
   let tasks = [];
   let events = [];
+  let upcomingDeadlines = [];
   let error = null;
   try {
     [tasks, events] = await Promise.all([
       listTasksDueOn(today),
       listEvents(`${today}T00:00:00+09:00`, `${today}T23:59:59+09:00`),
     ]);
+    upcomingDeadlines = (await getTasks())
+      .filter((t) => t.deadline && !t.done && t.deadline >= today)
+      .sort((a, b) => a.deadline.localeCompare(b.deadline));
   } catch (err) {
     error = err.message;
   }
@@ -75,6 +88,29 @@ export default async function Home() {
             </li>
           ))}
         </ul>
+      )}
+
+      {!error && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold text-zinc-700">다가오는 마감</h2>
+          {upcomingDeadlines.length === 0 ? (
+            <p className="text-sm text-zinc-400">다가오는 마감이 없습니다.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+              {upcomingDeadlines.map((task) => (
+                <li key={task.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                  <span className="w-28 shrink-0 text-xs text-zinc-500">
+                    {formatKoreanDate(task.deadline)}
+                  </span>
+                  <span className="flex-1 text-zinc-800">{task.title}</span>
+                  <span className="shrink-0 font-mono text-xs text-red-500">
+                    {formatDday(task.deadline, today)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

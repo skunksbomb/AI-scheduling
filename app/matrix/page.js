@@ -62,6 +62,21 @@ export default function MatrixPage() {
     });
   }
 
+  async function handleDelete(task) {
+    if (!confirm(`"${task.title}"을(를) 삭제할까요? 구글 캘린더/할 일에서도 삭제됩니다.`)) return;
+
+    const prevTasks = tasks;
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+
+    try {
+      const res = await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTasks(prevTasks);
+      alert("삭제에 실패했습니다. 다시 시도해주세요.");
+    }
+  }
+
   if (loading) {
     return <p className="p-8 text-sm text-zinc-500">불러오는 중...</p>;
   }
@@ -107,7 +122,7 @@ export default function MatrixPage() {
                       onChange={() => toggleDone(task)}
                       className="mt-0.5"
                     />
-                    <span className="flex flex-col">
+                    <span className="flex flex-1 flex-col">
                       <span className={task.done ? "line-through text-zinc-400" : ""}>
                         {task.title}
                         {task.deadline && (
@@ -127,6 +142,13 @@ export default function MatrixPage() {
                         </span>
                       )}
                     </span>
+                    <button
+                      onClick={() => handleDelete(task)}
+                      aria-label="삭제"
+                      className="mt-0.5 shrink-0 text-zinc-400 hover:text-red-600"
+                    >
+                      ✕
+                    </button>
                   </li>
                 ))}
               </ul>

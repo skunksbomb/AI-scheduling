@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+
+const TOAST_DURATION_MS = 20000;
 
 export default function DumpPage() {
   const [text, setText] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | error | done
   const [errorMessage, setErrorMessage] = useState("");
+  const [warning, setWarning] = useState(null);
+  const [toastLines, setToastLines] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => clearTimeout(toastTimerRef.current);
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -14,6 +23,7 @@ export default function DumpPage() {
 
     setStatus("loading");
     setErrorMessage("");
+    setWarning(null);
 
     try {
       const res = await fetch("/api/dump", {
@@ -29,6 +39,17 @@ export default function DumpPage() {
 
       setText("");
       setStatus("done");
+      setWarning(
+        data.uncertain
+          ? data.reason || "AI가 일부 항목의 배치를 확신하지 못했습니다."
+          : null
+      );
+
+      if (data.summary?.length > 0) {
+        clearTimeout(toastTimerRef.current);
+        setToastLines(data.summary);
+        toastTimerRef.current = setTimeout(() => setToastLines(null), TOAST_DURATION_MS);
+      }
     } catch (err) {
       setErrorMessage(err.message);
       setStatus("error");
@@ -72,6 +93,20 @@ export default function DumpPage() {
             매트릭스에서 확인하기
           </Link>
         </p>
+      )}
+
+      {warning && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          ⚠️ {warning} 배치가 부정확할 수 있으니 매트릭스에서 확인해주세요.
+        </p>
+      )}
+
+      {toastLines && (
+        <div className="fixed bottom-6 right-6 z-50 flex max-w-sm flex-col gap-1.5 rounded-lg bg-zinc-900 p-4 text-sm text-white shadow-lg">
+          {toastLines.map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
       )}
     </div>
   );
