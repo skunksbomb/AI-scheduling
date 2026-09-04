@@ -73,7 +73,8 @@ service_role 키는 DB 전체 권한을 갖는 비밀 키라 서버 코드(API �
 - 마감은 Google Calendar에 하루종일 '일정'으로, 실제 할 일은 Google Tasks에
   '할 일'로 등록 (하루 최대 4개 분산), 시간 정해진 약속은 '일정'으로 그대로 배치
 - "놓친 일정 재배치" 버튼으로 기한 지난 미완료 할 일 재배치
-- 데이터는 Supabase에 저장 (Vercel 배포 가능)
+- Supabase는 매트릭스용으로 '할 일'만 저장. 시간 정해진 '일정'(약속)은
+  Google Calendar에 생성만 하고 Supabase에는 남기지 않음
 
 ## 다음 단계 (예정)
 
