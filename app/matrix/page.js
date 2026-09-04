@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatMinutesAsTime } from "@/lib/dates";
 
 function formatScheduled(task) {
   if (!task.scheduledDate) return null;
   const [, mo, da] = task.scheduledDate.split("-");
+  if (task.suggestedStartMinutes != null && task.suggestedEndMinutes != null) {
+    return `${mo}/${da} ${formatMinutesAsTime(task.suggestedStartMinutes)}~${formatMinutesAsTime(
+      task.suggestedEndMinutes
+    )}`;
+  }
   return `${mo}/${da} 하루종일`;
 }
 
