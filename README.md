@@ -135,7 +135,11 @@ service_role 키는 DB 전체 권한을 갖는 비밀 키라 서버 코드(API �
 1. ~~Google Calendar / Tasks 연동~~ — 완료
 2. ~~미완료 항목 재배치~~ — 완료
 3. ~~실제 데이터베이스로 교체~~ — 완료 (Supabase)
-4. **PWA 설정** — 핸드폰 홈 화면에 설치 가능하도록 manifest 추가
+4. ~~PWA 설정~~ — 완료. `app/manifest.js`(Next.js manifest 라우트) + `app/icon-192`,
+   `app/icon-512`, `app/apple-icon.js`(모두 `next/og`의 `ImageResponse`로 코드에서
+   직접 그린 아이콘, 별도 이미지 파일 불필요)로 구성. 오프라인 캐싱(서비스 워커)은
+   범위에서 제외 — 이 앱은 항상 최신 일정/할일을 봐야 해서, 캐싱을 넣으면 오히려
+   오래된 데이터가 보일 위험이 있다.
 5. **Vercel 배포** — 무료 플랜으로 배포해서 핸드폰 브라우저로 접속
 
 핸드폰 홈 화면 위젯은 별도 개발 없이 Google Calendar 앱의 기본 위젯을 사용합니다

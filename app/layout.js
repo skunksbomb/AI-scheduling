@@ -15,6 +15,16 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "AI Scheduling",
   description: "개인용 AI 일정 관리",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "일정관리",
+  },
+};
+
+export const viewport = {
+  themeColor: "#4f46e5",
 };
 
 export default function RootLayout({ children }) {
