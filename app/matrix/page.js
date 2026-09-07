@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinutesAsTime } from "@/lib/dates";
+import { apiFetch } from "@/lib/clientFetch";
 
 function formatScheduled(task) {
   if (!task.scheduledDate) return null;
@@ -28,7 +29,7 @@ export default function MatrixPage() {
   const [rescheduleMessage, setRescheduleMessage] = useState("");
 
   async function loadTasks() {
-    const res = await fetch("/api/tasks");
+    const res = await apiFetch("/api/tasks");
     const data = await res.json();
     setTasks(data.tasks || []);
     setLoading(false);
@@ -42,7 +43,7 @@ export default function MatrixPage() {
     setRescheduling(true);
     setRescheduleMessage("");
     try {
-      const res = await fetch("/api/reschedule", { method: "POST" });
+      const res = await apiFetch("/api/reschedule", { method: "POST" });
       const data = await res.json();
       setTasks(data.tasks || []);
       setRescheduleMessage(
@@ -61,7 +62,7 @@ export default function MatrixPage() {
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t))
     );
-    await fetch("/api/tasks", {
+    await apiFetch("/api/tasks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: task.id, done: !task.done }),
@@ -80,7 +81,7 @@ export default function MatrixPage() {
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
     try {
-      const res = await fetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/tasks?id=${task.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
     } catch {
       setTasks(prevTasks);

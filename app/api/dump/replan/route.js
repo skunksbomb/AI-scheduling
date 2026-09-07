@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { appendUserContext, getUserContext } from "@/lib/store";
 import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
 import { distillContextNote, parseDumpText } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
 
 function describePreviousItem(item) {
   if (item.type === "event") {
@@ -23,6 +24,9 @@ function describePreviousItem(item) {
 //    할일이 아니다" 같은 피드백도 반영 가능하다.
 // Google/Supabase에는 아무것도 쓰지 않는다.
 export async function POST(request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
   const { items, feedback, rawText } = await request.json();
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -30,17 +34,17 @@ export async function POST(request) {
   }
 
   const trimmedFeedback = feedback && feedback.trim() ? feedback.trim() : null;
-  let userContext = await getUserContext();
+  let userContext = await getUserContext(user.id);
 
   if (trimmedFeedback) {
     try {
       const { shouldRemember, note } = await distillContextNote(trimmedFeedback);
       if (shouldRemember && note) {
-        userContext = await appendUserContext(note);
+        userContext = await appendUserContext(user.id, note);
       }
     } catch {
       // 판단 자체가 실패하면, 아예 기억을 못 하는 것보단 원문이라도 저장해둔다.
-      userContext = await appendUserContext(trimmedFeedback);
+      userContext = await appendUserContext(user.id, trimmedFeedback);
     }
   }
 
@@ -75,7 +79,13 @@ ${previousResultLines})
   let taskDraftItems = [];
   let placementFallback = false;
   if (taskItems.length > 0) {
-    const result = await buildTaskDraft({ taskItems, userContext, latestFeedback: trimmedFeedback });
+    const result = await buildTaskDraft({
+      userId: user.id,
+      refreshToken: user.refreshToken,
+      taskItems,
+      userContext,
+      latestFeedback: trimmedFeedback,
+    });
     taskDraftItems = result.items;
     placementFallback = result.placementFallback;
   }

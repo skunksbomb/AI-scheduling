@@ -3,15 +3,19 @@ import { getUserContext } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
 import { quadrantRank } from "@/lib/scheduling";
 import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
   const { text } = await request.json();
 
   if (!text || !text.trim()) {
     return NextResponse.json({ error: "내용을 입력해주세요." }, { status: 400 });
   }
 
-  const userContext = await getUserContext();
+  const userContext = await getUserContext(user.id);
 
   let parsedItems, uncertain, reason;
   try {
@@ -32,7 +36,7 @@ export async function POST(request) {
   let taskDraftItems = [];
   let placementFallback = false;
   if (taskItems.length > 0) {
-    const result = await buildTaskDraft({ taskItems, userContext });
+    const result = await buildTaskDraft({ userId: user.id, refreshToken: user.refreshToken, taskItems, userContext });
     taskDraftItems = result.items;
     placementFallback = result.placementFallback;
   }

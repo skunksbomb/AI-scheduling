@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueOn } from "@/lib/googleTasks";
 import { todayStr, addDays, formatKoreanDate } from "@/lib/dates";
+import { getCurrentUser } from "@/lib/auth";
 
 const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -28,6 +30,9 @@ function formatDday(deadline, today) {
 }
 
 export default async function Home() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const today = todayStr();
   const weekday = WEEKDAY_NAMES[new Date().getDay()];
 
@@ -38,9 +43,10 @@ export default async function Home() {
   try {
     let deadlineEvents;
     [tasks, events, deadlineEvents] = await Promise.all([
-      listTasksDueOn(today),
-      listEvents(`${today}T00:00:00+09:00`, `${today}T23:59:59+09:00`),
+      listTasksDueOn(user.refreshToken, today),
+      listEvents(user.refreshToken, `${today}T00:00:00+09:00`, `${today}T23:59:59+09:00`),
       listEvents(
+        user.refreshToken,
         `${today}T00:00:00+09:00`,
         `${addDays(today, UPCOMING_WINDOW_DAYS)}T00:00:00+09:00`
       ),

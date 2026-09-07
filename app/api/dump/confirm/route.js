@@ -4,8 +4,12 @@ import { listEvents } from "@/lib/googleCalendar";
 import { commitNewTaskPlacement, commitEventItem } from "@/lib/taskCommit";
 import { addDays, formatKoreanDate, formatMinutesAsTime } from "@/lib/dates";
 import { findTimeConflict } from "@/lib/placement";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
   const { items, rawText } = await request.json();
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -25,7 +29,7 @@ export async function POST(request) {
 
     let busyEvents = [];
     try {
-      busyEvents = await listEvents(`${from}T00:00:00+09:00`, `${addDays(to, 1)}T00:00:00+09:00`);
+      busyEvents = await listEvents(user.refreshToken, `${from}T00:00:00+09:00`, `${addDays(to, 1)}T00:00:00+09:00`);
     } catch {
       // 재확인 실패는 무시하고 미리보기 시점 판단을 그대로 신뢰한다.
     }
@@ -42,8 +46,8 @@ export async function POST(request) {
   }
 
   const [eventResults, newTasks] = await Promise.all([
-    Promise.all(eventItems.map((item) => commitEventItem(item))),
-    Promise.all(recheckedTaskItems.map((item) => commitNewTaskPlacement(item, rawText))),
+    Promise.all(eventItems.map((item) => commitEventItem(user.refreshToken, item))),
+    Promise.all(recheckedTaskItems.map((item) => commitNewTaskPlacement(user.refreshToken, item, rawText))),
   ]);
 
   const taskSummary = newTasks.map((base, i) => {
@@ -68,7 +72,7 @@ export async function POST(request) {
   });
 
   const summary = [...eventResults.map((r) => r.summary), ...taskSummary];
-  const tasks = newTasks.length > 0 ? await addTasks(newTasks) : await getTasks();
+  const tasks = newTasks.length > 0 ? await addTasks(user.id, newTasks) : await getTasks(user.id);
 
   return NextResponse.json({ tasks, summary });
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/clientFetch";
 
 const TOAST_DURATION_MS = 20000;
 
@@ -40,7 +41,7 @@ export default function DumpPage() {
     setContextOpen(true);
     setContextLoading(true);
     try {
-      const res = await fetch("/api/context");
+      const res = await apiFetch("/api/context");
       const data = await res.json();
       setContextText((data.context || []).join("\n"));
     } finally {
@@ -51,7 +52,7 @@ export default function DumpPage() {
   async function handleSaveContext() {
     setContextSaving(true);
     try {
-      const res = await fetch("/api/context", {
+      const res = await apiFetch("/api/context", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: contextText }),
@@ -74,7 +75,7 @@ export default function DumpPage() {
     setFeedback("");
 
     try {
-      const res = await fetch("/api/dump", {
+      const res = await apiFetch("/api/dump", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -109,7 +110,7 @@ export default function DumpPage() {
     setStatus("confirming");
 
     try {
-      const res = await fetch("/api/dump/confirm", {
+      const res = await apiFetch("/api/dump/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: taskDraft.items, rawText: taskDraft.rawText }),
@@ -143,7 +144,7 @@ export default function DumpPage() {
     setStatus("replanning");
 
     try {
-      const res = await fetch("/api/dump/replan", {
+      const res = await apiFetch("/api/dump/replan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: taskDraft.items, feedback, rawText: taskDraft.rawText }),

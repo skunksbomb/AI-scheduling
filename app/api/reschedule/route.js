@@ -6,6 +6,7 @@ import { todayStr, addDays } from "@/lib/dates";
 import { quadrantRank, buildDayCounts, pickDayWithCapacity } from "@/lib/scheduling";
 import { suggestPlacements, applyGuardrails } from "@/lib/placement";
 import { formatGoogleTaskTitle } from "@/lib/taskCommit";
+import { getCurrentUser } from "@/lib/auth";
 
 const FALLBACK_MAX_TASKS_PER_DAY = 4;
 const DEFAULT_WINDOW_DAYS = 7;
@@ -20,7 +21,10 @@ function findMissedTasks(tasks) {
 }
 
 export async function POST() {
-  const tasks = await getTasks();
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  const tasks = await getTasks(user.id);
   const missed = findMissedTasks(tasks);
 
   if (missed.length === 0) {
@@ -38,12 +42,12 @@ export async function POST() {
   let finalized;
   try {
     const [busyEvents] = await Promise.all([
-      listEvents(`${today}T00:00:00+09:00`, `${addDays(windowTo, 1)}T00:00:00+09:00`),
+      listEvents(user.refreshToken, `${today}T00:00:00+09:00`, `${addDays(windowTo, 1)}T00:00:00+09:00`),
     ]);
     const busyTasks = others.filter(
       (t) => t.scheduledDate && t.scheduledDate >= today && t.scheduledDate <= windowTo && !t.done
     );
-    const userContext = await getUserContext();
+    const userContext = await getUserContext(user.id);
     const placements = await suggestPlacements({ items: missed, busyEvents, busyTasks, windowTo, userContext });
     finalized = applyGuardrails({ items: missed, placements, busyEvents });
   } catch {
@@ -76,11 +80,11 @@ export async function POST() {
 
   for (const item of finalized) {
     if (item.googleTaskId) {
-      await deleteTask(item.googleTaskId);
+      await deleteTask(user.refreshToken, item.googleTaskId);
     }
 
     if (!item.scheduledDate) {
-      await updateTask(item.id, {
+      await updateTask(user.id, item.id, {
         scheduledDate: null,
         suggestedStartMinutes: null,
         suggestedEndMinutes: null,
@@ -91,11 +95,11 @@ export async function POST() {
     }
 
     try {
-      const googleTask = await createTask({
+      const googleTask = await createTask(user.refreshToken, {
         title: formatGoogleTaskTitle(item),
         dueDateStr: item.scheduledDate,
       });
-      await updateTask(item.id, {
+      await updateTask(user.id, item.id, {
         scheduledDate: item.scheduledDate,
         suggestedStartMinutes: item.hasSuggestedTime ? item.suggestedStartMinutes : null,
         suggestedEndMinutes: item.hasSuggestedTime ? item.suggestedEndMinutes : null,
@@ -104,7 +108,7 @@ export async function POST() {
       });
       rescheduled += 1;
     } catch (err) {
-      await updateTask(item.id, {
+      await updateTask(user.id, item.id, {
         scheduledDate: null,
         suggestedStartMinutes: null,
         suggestedEndMinutes: null,
@@ -114,5 +118,5 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ rescheduled, tasks: await getTasks() });
+  return NextResponse.json({ rescheduled, tasks: await getTasks(user.id) });
 }
