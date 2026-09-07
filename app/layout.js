@@ -39,8 +39,8 @@ export default async function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-zinc-50">
-        <nav className="border-b border-zinc-200 bg-white px-6 py-3 flex items-center justify-between text-sm font-medium">
-          <div className="flex gap-6">
+        <nav className="border-b border-zinc-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm font-medium sm:px-6">
+          <div className="flex flex-wrap gap-4 whitespace-nowrap">
             <Link href="/" className="text-zinc-900 hover:text-zinc-600">
               일정
             </Link>
@@ -52,8 +52,8 @@ export default async function RootLayout({ children }) {
             </Link>
           </div>
           {user && (
-            <div className="flex items-center gap-3 text-xs text-zinc-500">
-              <span>{user.email}</span>
+            <div className="flex items-center gap-3 whitespace-nowrap text-xs text-zinc-500">
+              <span className="max-w-[45vw] truncate sm:max-w-none">{user.email}</span>
               <LogoutButton />
             </div>
           )}
