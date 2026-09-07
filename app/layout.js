@@ -39,8 +39,14 @@ export default async function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-zinc-50">
-        <nav className="border-b border-zinc-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm font-medium sm:px-6">
-          <div className="flex flex-wrap gap-4 whitespace-nowrap">
+        <nav className="border-b border-zinc-200 bg-white px-4 py-3 flex flex-col gap-2 text-sm font-medium sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          {user && (
+            <div className="flex items-center justify-between gap-3 whitespace-nowrap text-xs text-zinc-500 sm:order-2">
+              <span className="max-w-[60vw] truncate sm:max-w-none">{user.email}</span>
+              <LogoutButton />
+            </div>
+          )}
+          <div className="flex flex-wrap gap-4 whitespace-nowrap sm:order-1">
             <Link href="/" className="text-zinc-900 hover:text-zinc-600">
               일정
             </Link>
@@ -51,12 +57,6 @@ export default async function RootLayout({ children }) {
               아이젠하워 매트릭스
             </Link>
           </div>
-          {user && (
-            <div className="flex items-center gap-3 whitespace-nowrap text-xs text-zinc-500">
-              <span className="max-w-[45vw] truncate sm:max-w-none">{user.email}</span>
-              <LogoutButton />
-            </div>
-          )}
         </nav>
         <main className="flex-1 flex flex-col">{children}</main>
       </body>
