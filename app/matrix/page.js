@@ -27,6 +27,7 @@ export default function MatrixPage() {
   const [loading, setLoading] = useState(true);
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleMessage, setRescheduleMessage] = useState("");
+  const [confirmingId, setConfirmingId] = useState(null);
 
   async function loadTasks() {
     const res = await apiFetch("/api/tasks");
@@ -69,13 +70,12 @@ export default function MatrixPage() {
     });
   }
 
-  async function handleDelete(task) {
-    if (
-      !confirm(
-        `"${task.title}"을(를) 삭제할까요? 구글 할 일에서도 삭제됩니다.\n(마감 표시 일정은 캘린더에 그대로 남아요)`
-      )
-    )
-      return;
+  // 예전엔 브라우저 기본 confirm() 팝업을 썼는데, 핸드폰 홈 화면에 설치한
+  // PWA(standalone 모드)에서는 이런 네이티브 팝업이 제대로 안 뜨거나 뜨다 마는
+  // 경우가 있어서, 삭제가 안 되거나 느리게 느껴지는 원인이 됐다. 앱 자체
+  // UI로 확인창을 대신하면 이 문제가 없고, 누르는 즉시 화면에서 지울 수 있다.
+  async function confirmDelete(task) {
+    setConfirmingId(null);
 
     const prevTasks = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -153,9 +153,26 @@ export default function MatrixPage() {
                           {task.scheduleError}
                         </span>
                       )}
+                      {confirmingId === task.id && (
+                        <span className="mt-1 flex items-center gap-2 text-xs">
+                          <span className="text-zinc-500">삭제할까요? (구글 할 일에서도 삭제됩니다)</span>
+                          <button
+                            onClick={() => confirmDelete(task)}
+                            className="rounded-full bg-red-600 px-2.5 py-1 font-medium text-white hover:bg-red-700"
+                          >
+                            삭제
+                          </button>
+                          <button
+                            onClick={() => setConfirmingId(null)}
+                            className="rounded-full border border-zinc-300 px-2.5 py-1 text-zinc-600 hover:bg-zinc-100"
+                          >
+                            취소
+                          </button>
+                        </span>
+                      )}
                     </span>
                     <button
-                      onClick={() => handleDelete(task)}
+                      onClick={() => setConfirmingId(task.id)}
                       aria-label="삭제"
                       className="mt-0.5 shrink-0 text-zinc-400 hover:text-red-600"
                     >

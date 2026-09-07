@@ -3,6 +3,9 @@ import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueOn } from "@/lib/googleTasks";
 import { todayStr, addDays, formatKoreanDate } from "@/lib/dates";
 import { getCurrentUser } from "@/lib/auth";
+import TodayTaskList from "@/app/components/TodayTaskList";
+import MonthCalendar from "@/app/components/MonthCalendar";
+import { TaskDoneProvider } from "@/lib/taskDoneContext";
 
 const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -65,7 +68,8 @@ export default async function Home() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-6 py-12">
+    <TaskDoneProvider>
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-6 py-12">
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">오늘 일정</h1>
         <p className="text-sm text-zinc-500">
@@ -79,21 +83,7 @@ export default async function Home() {
         </p>
       )}
 
-      {!error && tasks.length > 0 && (
-        <ul className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
-          {tasks.map((task) => {
-            const done = task.status === "completed";
-            return (
-              <li key={task.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span className="w-28 shrink-0 text-xs text-zinc-500">할 일</span>
-                <span className={done ? "text-zinc-400 line-through" : "text-zinc-800"}>
-                  {done ? "☑" : "☐"} {task.title}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {!error && tasks.length > 0 && <TodayTaskList initialTasks={tasks} />}
 
       {!error && events.length === 0 && (
         <p className="text-sm text-zinc-400">오늘 등록된 일정이 없습니다.</p>
@@ -114,7 +104,7 @@ export default async function Home() {
 
       {!error && (
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-zinc-700">다가오는 마감</h2>
+          <h2 className="mb-2 text-xl font-semibold text-zinc-900">다가오는 마감</h2>
           {upcomingDeadlines.length === 0 ? (
             <p className="text-sm text-zinc-400">다가오는 마감이 없습니다.</p>
           ) : (
@@ -134,6 +124,12 @@ export default async function Home() {
           )}
         </div>
       )}
+
+      <div>
+        <h2 className="mb-2 text-xl font-semibold text-zinc-900">월간 일정</h2>
+        <MonthCalendar />
+      </div>
     </div>
+    </TaskDoneProvider>
   );
 }
