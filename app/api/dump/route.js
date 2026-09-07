@@ -3,6 +3,8 @@ import { getUserContext } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
 import { quadrantRank } from "@/lib/scheduling";
 import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
+import { getExistingItems, formatExistingItemsForPrompt } from "@/lib/existingItems";
+import { buildExistingItemDrafts } from "@/lib/existingItemDrafts";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request) {
@@ -15,17 +17,30 @@ export async function POST(request) {
     return NextResponse.json({ error: "내용을 입력해주세요." }, { status: 400 });
   }
 
-  const userContext = await getUserContext(user.id);
+  const [userContext, existingItems] = await Promise.all([
+    getUserContext(user.id),
+    getExistingItems(user.id, user.refreshToken),
+  ]);
 
   let parsedItems, uncertain, reason;
   try {
-    ({ tasks: parsedItems, uncertain, reason } = await parseDumpText(text, userContext));
+    ({ tasks: parsedItems, uncertain, reason } = await parseDumpText(
+      text,
+      userContext,
+      formatExistingItemsForPrompt(existingItems)
+    ));
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 
+  // 기존 항목 수정/삭제(edit/delete)는 AI 배치 판단이 필요 없어 따로 처리하고,
+  // 새로 추가하는 항목(add, 기본값)만 기존 배치 파이프라인을 그대로 탄다.
+  const addItems = parsedItems.filter((item) => (item.op ?? "add") === "add");
+  const editDeleteItems = parsedItems.filter((item) => (item.op ?? "add") !== "add");
+  const existingItemDraftItems = buildExistingItemDrafts(editDeleteItems, existingItems);
+
   // 중요한 일부터 먼저 처리되도록 아이젠하워 우선순위로 정렬
-  const sortedItems = [...parsedItems].sort((a, b) => quadrantRank(a) - quadrantRank(b));
+  const sortedItems = [...addItems].sort((a, b) => quadrantRank(a) - quadrantRank(b));
   const eventItems = sortedItems.filter((item) => item.type === "event" && item.startTime);
   const taskItems = sortedItems.filter((item) => !(item.type === "event" && item.startTime));
 
@@ -41,7 +56,11 @@ export async function POST(request) {
     placementFallback = result.placementFallback;
   }
 
-  const allItems = [...eventDraftItems, ...taskDraftItems];
+  const allItems = [
+    ...existingItemDraftItems,
+    ...eventDraftItems.map((i) => ({ ...i, op: "add" })),
+    ...taskDraftItems.map((i) => ({ ...i, op: "add" })),
+  ];
   const taskDraft = allItems.length > 0 ? { items: allItems, placementFallback, rawText: text } : null;
 
   return NextResponse.json({ uncertain, reason, taskDraft });

@@ -179,7 +179,9 @@ export default function DumpPage() {
         </button>
       </div>
       <p className="text-sm text-zinc-600">
-        생각나는 할 일을 자유롭게 적어주세요. 예: &quot;다음주 화요일 영어숙제 마감&quot;
+        생각나는 할 일을 자유롭게 적어주세요. 예: &quot;다음주 화요일 영어숙제 마감&quot;.
+        기존 일정/할일을 수정하거나 지우고 싶을 때도 그냥 적으면 돼요. 예: &quot;화학보고서
+        마감 다음주로 바꿔줘&quot;, &quot;내일 3시 약속 취소해줘&quot;
       </p>
 
       {contextOpen && (
@@ -246,7 +248,7 @@ export default function DumpPage() {
 
       {taskDraft && (
         <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-zinc-700">AI가 이렇게 배치하려고 해요</h2>
+          <h2 className="text-sm font-semibold text-zinc-700">AI가 이렇게 처리하려고 해요</h2>
           {taskDraft.placementFallback && (
             <p className="text-xs text-amber-700">
               ⚠️ AI 배치 제안에 실패해서 예전 방식(단순 분산)으로 대체했습니다.
@@ -281,7 +283,7 @@ export default function DumpPage() {
                 disabled={busy || !feedback.trim()}
                 className="shrink-0 rounded-full border border-zinc-300 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
               >
-                {status === "replanning" ? "다시 배치 중..." : "다시 배치"}
+                {status === "replanning" ? "다시 반영 중..." : "다시 반영"}
               </button>
             </div>
           </div>
@@ -292,7 +294,7 @@ export default function DumpPage() {
               disabled={busy}
               className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
             >
-              {status === "confirming" ? "확정 중..." : "전체 확정"}
+              {status === "confirming" ? "적용 중..." : "변경사항 적용"}
             </button>
             <button
               onClick={handleCancelDraft}
