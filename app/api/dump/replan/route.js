@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { appendUserContext, getUserContext } from "@/lib/store";
-import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
+import { buildTaskDraft, buildEventDraftItems, resolveEventTimeHints } from "@/lib/placement";
 import { distillContextNote, parseDumpText } from "@/lib/ai";
 import { getExistingItems, formatExistingItemsForPrompt } from "@/lib/existingItems";
 import { buildExistingItemDrafts } from "@/lib/existingItemDrafts";
@@ -103,7 +103,8 @@ ${roundsText}`;
   const eventItems = addItems.filter((item) => item.type === "event" && item.startTime);
   const taskItems = addItems.filter((item) => !(item.type === "event" && item.startTime));
 
-  const eventDraftItems = buildEventDraftItems(eventItems).map((i) => ({ ...i, op: "add" }));
+  const resolvedEventItems = await resolveEventTimeHints(user.refreshToken, eventItems);
+  const eventDraftItems = buildEventDraftItems(resolvedEventItems).map((i) => ({ ...i, op: "add" }));
 
   // 배치 판단(suggestPlacements) 쪽에도 이번 피드백 한 줄만이 아니라 지금까지의
   // 피드백을 전부 시간순 번호로 넘긴다 — 그래야 "저녁엔 하지마" 같은 이전

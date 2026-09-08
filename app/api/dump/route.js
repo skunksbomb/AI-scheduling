@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserContext } from "@/lib/store";
 import { parseDumpText } from "@/lib/ai";
 import { quadrantRank } from "@/lib/scheduling";
-import { buildTaskDraft, buildEventDraftItems } from "@/lib/placement";
+import { buildTaskDraft, buildEventDraftItems, resolveEventTimeHints } from "@/lib/placement";
 import { getExistingItems, formatExistingItemsForPrompt } from "@/lib/existingItems";
 import { buildExistingItemDrafts } from "@/lib/existingItemDrafts";
 import { getCurrentUser } from "@/lib/auth";
@@ -44,9 +44,13 @@ export async function POST(request) {
   const eventItems = sortedItems.filter((item) => item.type === "event" && item.startTime);
   const taskItems = sortedItems.filter((item) => !(item.type === "event" && item.startTime));
 
+  // "아침에"/"오후에"처럼 대략적인 시간대만 있는 일정은, 확정 짓기 전에
+  // 실제 캘린더를 보고 구체적인 시각을 먼저 채워 넣는다.
+  const resolvedEventItems = await resolveEventTimeHints(user.refreshToken, eventItems);
+
   // 일정(event)도 할일과 마찬가지로 곧바로 커밋하지 않고, 미리보기(draft)로만
   // 보여준다 — AI 파싱이 항상 맞는 건 아니라서 사용자 확인을 거친다.
-  const eventDraftItems = buildEventDraftItems(eventItems);
+  const eventDraftItems = buildEventDraftItems(resolvedEventItems);
 
   let taskDraftItems = [];
   let placementFallback = false;
