@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/clientFetch";
+import { useTasksStore } from "@/lib/tasksStore";
 
 const TOAST_DURATION_MS = 20000;
 
 export default function DumpPage() {
+  const { setTasks } = useTasksStore();
   const [text, setText] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | draft | confirming | replanning | error | done
   const [errorMessage, setErrorMessage] = useState("");
@@ -127,6 +129,9 @@ export default function DumpPage() {
       }
 
       showToast(data.summary);
+      // 확정 응답에 최신 할 일 목록이 같이 오므로 저장소에 바로 넣어둔다 —
+      // 매트릭스로 넘어가면 다시 불러오지 않고 이 목록을 즉시 보여준다.
+      if (Array.isArray(data.tasks)) setTasks(data.tasks);
       setTaskDraft(null);
       setStatus("done");
     } catch (err) {

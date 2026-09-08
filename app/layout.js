@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import LogoutButton from "@/app/components/LogoutButton";
+import { TasksProvider } from "@/lib/tasksStore";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -59,7 +60,9 @@ export default async function RootLayout({ children }) {
             </Link>
           </div>
         </nav>
-        <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>
+        <main className="flex-1 flex flex-col pb-16 sm:pb-0">
+          <TasksProvider>{children}</TasksProvider>
+        </main>
         <nav
           className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white text-xs font-medium sm:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}

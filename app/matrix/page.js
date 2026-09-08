@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatMinutesAsTime } from "@/lib/dates";
 import { apiFetch } from "@/lib/clientFetch";
+import { useTasksStore } from "@/lib/tasksStore";
 
 function formatScheduled(task) {
   if (!task.scheduledDate) return null;
@@ -23,22 +24,17 @@ const QUADRANTS = [
 ];
 
 export default function MatrixPage() {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // 목록은 페이지를 오가도 유지되는 공용 저장소에서 읽는다 — dump에서 확정한
+  // 직후 넘어오면 이미 채워져 있어 즉시 뜬다. 비어있을 때(새로고침 직후)만 서버에서 가져온다.
+  const { tasks, loaded, setTasks, refresh } = useTasksStore();
+  const loading = !loaded;
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleMessage, setRescheduleMessage] = useState("");
   const [confirmingId, setConfirmingId] = useState(null);
 
-  async function loadTasks() {
-    const res = await apiFetch("/api/tasks");
-    const data = await res.json();
-    setTasks(data.tasks || []);
-    setLoading(false);
-  }
-
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (!loaded) refresh();
+  }, [loaded, refresh]);
 
   async function handleReschedule() {
     setRescheduling(true);
