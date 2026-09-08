@@ -14,6 +14,10 @@ export default function DumpPage() {
   const [toastLines, setToastLines] = useState(null);
   const [taskDraft, setTaskDraft] = useState(null);
   const [feedback, setFeedback] = useState("");
+  // 지금까지 이 dump에서 주고받은 피드백 라운드(그때 배치 상태 + 그때 피드백)를
+  // 시간순으로 쌓아둔다 — 다음 "다시 반영"을 누를 때 서버에 전체를 같이 보내서,
+  // AI가 이전 라운드에서 이미 반영하기로 한 걸 잊지 않게 한다.
+  const [feedbackHistory, setFeedbackHistory] = useState([]);
 
   const [contextOpen, setContextOpen] = useState(false);
   const [contextText, setContextText] = useState("");
@@ -73,6 +77,7 @@ export default function DumpPage() {
     setWarning(null);
     setTaskDraft(null);
     setFeedback("");
+    setFeedbackHistory([]);
 
     try {
       const res = await apiFetch("/api/dump", {
@@ -134,6 +139,7 @@ export default function DumpPage() {
     // 확정 전엔 Google/Supabase에 아무것도 안 쓰여 있으므로 그냥 버리면 된다.
     setTaskDraft(null);
     setFeedback("");
+    setFeedbackHistory([]);
     setStatus("idle");
   }
 
@@ -147,7 +153,12 @@ export default function DumpPage() {
       const res = await apiFetch("/api/dump/replan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: taskDraft.items, feedback, rawText: taskDraft.rawText }),
+        body: JSON.stringify({
+          items: taskDraft.items,
+          feedback,
+          rawText: taskDraft.rawText,
+          feedbackHistory,
+        }),
       });
       const data = await res.json();
 
@@ -156,6 +167,7 @@ export default function DumpPage() {
       }
 
       setTaskDraft({ ...taskDraft, items: data.items, placementFallback: data.placementFallback });
+      setFeedbackHistory(data.feedbackHistory || []);
       setFeedback("");
       if (contextOpen) setContextText((data.userContext || []).join("\n"));
       setStatus("draft");
