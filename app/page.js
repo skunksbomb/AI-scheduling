@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueOn } from "@/lib/googleTasks";
-import { todayStr, addDays, formatKoreanDate } from "@/lib/dates";
+import { todayStr, addDays, formatKoreanDate, parseStartTime, formatMinutesAsTime } from "@/lib/dates";
 import { getCurrentUser } from "@/lib/auth";
 import TodayTaskList from "@/app/components/TodayTaskList";
 import MonthCalendar from "@/app/components/MonthCalendar";
@@ -15,13 +15,15 @@ const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 const DEADLINE_PREFIX = "🔔 마감:";
 const UPCOMING_WINDOW_DAYS = 60;
 
+// event.start/end.dateTime은 "+09:00" 오프셋이 붙은 KST 문자열이라, Date
+// 객체 없이 문자열에서 바로 시각을 읽는다 — 서버가 UTC로 도는 환경(Vercel)에서
+// new Date(...).getHours()를 쓰면 9시간 밀린다.
 function formatTimeRange(event) {
   if (event.start.date) return "하루종일";
-  const start = new Date(event.start.dateTime);
-  const end = new Date(event.end.dateTime);
-  const fmt = (d) =>
-    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${fmt(start)} - ${fmt(end)}`;
+  const start = parseStartTime(event.start.dateTime);
+  const end = parseStartTime(event.end.dateTime);
+  if (!start || !end) return "";
+  return `${formatMinutesAsTime(start.minutes)} - ${formatMinutesAsTime(end.minutes)}`;
 }
 
 function formatDday(deadline, today) {
@@ -37,7 +39,8 @@ export default async function Home() {
   if (!user) redirect("/login");
 
   const today = todayStr();
-  const weekday = WEEKDAY_NAMES[new Date().getDay()];
+  const [todayY, todayM, todayD] = today.split("-").map(Number);
+  const weekday = WEEKDAY_NAMES[new Date(todayY, todayM - 1, todayD).getDay()];
 
   let tasks = [];
   let events = [];
