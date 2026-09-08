@@ -4,6 +4,7 @@ import { listEvents } from "@/lib/googleCalendar";
 import { commitNewTaskPlacement, commitEventItem, commitEditItem, commitDeleteItem } from "@/lib/taskCommit";
 import { addDays, formatKoreanDate, formatMinutesAsTime } from "@/lib/dates";
 import { findTimeConflict } from "@/lib/placement";
+import { syncWithGoogle } from "@/lib/sync";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request) {
@@ -85,7 +86,17 @@ export async function POST(request) {
     ...editResults.map((r) => r.summary),
     ...deleteResults.map((r) => r.summary),
   ];
-  const tasks = newTasks.length > 0 ? await addTasks(user.id, newTasks) : await getTasks(user.id);
+  if (newTasks.length > 0) await addTasks(user.id, newTasks);
+
+  // 매트릭스 진입 시엔 동기화를 안 하거나 드물게만 하므로, 실제로 뭔가 바뀌는
+  // 이 시점에 구글 쪽 상태를 한 번 맞춰둔다. 실패해도 확정 자체는 끝난 거라
+  // 저장된 목록으로 응답한다.
+  let tasks;
+  try {
+    tasks = await syncWithGoogle(user.id, user.refreshToken);
+  } catch {
+    tasks = await getTasks(user.id);
+  }
 
   return NextResponse.json({ tasks, summary });
 }

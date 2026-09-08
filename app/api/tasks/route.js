@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getTasks, updateTask, deleteTaskRow } from "@/lib/store";
 import { completeTask, reopenTask, deleteTask as deleteGoogleTask } from "@/lib/googleTasks";
-import { syncWithGoogle } from "@/lib/sync";
+import { syncIfStale } from "@/lib/sync";
 import { getCurrentUser } from "@/lib/auth";
+
+const SYNC_MAX_AGE_MINUTES = 30;
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  return NextResponse.json({ tasks: await syncWithGoogle(user.id, user.refreshToken) });
+  return NextResponse.json({ tasks: await syncIfStale(user.id, user.refreshToken, SYNC_MAX_AGE_MINUTES) });
 }
 
 export async function DELETE(request) {
