@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/clientFetch";
+import { apiJson } from "@/lib/clientFetch";
 import { useTasksStore } from "@/lib/tasksStore";
 
 const TOAST_DURATION_MS = 20000;
@@ -47,8 +47,7 @@ export default function DumpPage() {
     setContextOpen(true);
     setContextLoading(true);
     try {
-      const res = await apiFetch("/api/context");
-      const data = await res.json();
+      const data = await apiJson("/api/context");
       setContextText((data.context || []).join("\n"));
     } finally {
       setContextLoading(false);
@@ -58,12 +57,11 @@ export default function DumpPage() {
   async function handleSaveContext() {
     setContextSaving(true);
     try {
-      const res = await apiFetch("/api/context", {
+      const data = await apiJson("/api/context", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: contextText }),
       });
-      const data = await res.json();
       setContextText((data.context || []).join("\n"));
     } finally {
       setContextSaving(false);
@@ -82,16 +80,11 @@ export default function DumpPage() {
     setFeedbackHistory([]);
 
     try {
-      const res = await apiFetch("/api/dump", {
+      const data = await apiJson("/api/dump", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "알 수 없는 오류가 발생했습니다.");
-      }
 
       setText("");
       setWarning(
@@ -117,16 +110,11 @@ export default function DumpPage() {
     setStatus("confirming");
 
     try {
-      const res = await apiFetch("/api/dump/confirm", {
+      const data = await apiJson("/api/dump/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: taskDraft.items, rawText: taskDraft.rawText }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "알 수 없는 오류가 발생했습니다.");
-      }
 
       showToast(data.summary);
       // 확정 응답에 최신 할 일 목록이 같이 오므로 저장소에 바로 넣어둔다 —
@@ -155,7 +143,7 @@ export default function DumpPage() {
     setStatus("replanning");
 
     try {
-      const res = await apiFetch("/api/dump/replan", {
+      const data = await apiJson("/api/dump/replan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,11 +153,6 @@ export default function DumpPage() {
           feedbackHistory,
         }),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "알 수 없는 오류가 발생했습니다.");
-      }
 
       setTaskDraft({ ...taskDraft, items: data.items, placementFallback: data.placementFallback });
       setFeedbackHistory(data.feedbackHistory || []);

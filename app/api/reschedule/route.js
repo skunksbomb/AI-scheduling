@@ -7,6 +7,7 @@ import { quadrantRank, buildDayCounts, pickDayWithCapacity } from "@/lib/schedul
 import { suggestPlacements, applyGuardrails } from "@/lib/placement";
 import { formatGoogleTaskTitle } from "@/lib/taskCommit";
 import { getCurrentUser } from "@/lib/auth";
+import { reauthMessageFor } from "@/lib/googleAuth";
 
 const FALLBACK_MAX_TASKS_PER_DAY = 4;
 const DEFAULT_WINDOW_DAYS = 7;
@@ -113,7 +114,7 @@ export async function POST() {
         suggestedStartMinutes: null,
         suggestedEndMinutes: null,
         googleTaskId: null,
-        scheduleError: err.message,
+        scheduleError: reauthMessageFor(err) ?? err.message,
       });
     }
   }

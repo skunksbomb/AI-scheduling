@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueBetween } from "@/lib/googleTasks";
 import { getCurrentUser } from "@/lib/auth";
+import { apiErrorResponse } from "@/lib/apiError";
 import { toDateStr } from "@/lib/dates";
 
 export async function GET(request) {
@@ -22,9 +23,13 @@ export async function GET(request) {
   const timeMin = `${monthStart}T00:00:00+09:00`;
   const timeMax = `${monthEnd}T00:00:00+09:00`;
 
-  const [events, tasks] = await Promise.all([
-    listEvents(user.refreshToken, timeMin, timeMax),
-    listTasksDueBetween(user.refreshToken, monthStart, monthEnd),
-  ]);
-  return NextResponse.json({ events, tasks });
+  try {
+    const [events, tasks] = await Promise.all([
+      listEvents(user.refreshToken, timeMin, timeMax),
+      listTasksDueBetween(user.refreshToken, monthStart, monthEnd),
+    ]);
+    return NextResponse.json({ events, tasks });
+  } catch (err) {
+    return apiErrorResponse(err);
+  }
 }

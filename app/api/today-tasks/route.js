@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { completeTask, reopenTask } from "@/lib/googleTasks";
 import { getCurrentUser } from "@/lib/auth";
+import { apiErrorResponse } from "@/lib/apiError";
 
 // 홈 화면의 "오늘 일정"에 뜨는 할 일은 아이젠하워 매트릭스(Supabase)와 무관하게
 // 구글 할 일 목록에서 오늘 마감인 것만 직접 읽어온 것이라, id도 Supabase row id가
@@ -12,6 +13,10 @@ export async function PATCH(request) {
   const { id, done } = await request.json();
   if (!id) return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
 
-  await (done ? completeTask(user.refreshToken, id) : reopenTask(user.refreshToken, id));
-  return NextResponse.json({ ok: true });
+  try {
+    await (done ? completeTask(user.refreshToken, id) : reopenTask(user.refreshToken, id));
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return apiErrorResponse(err);
+  }
 }

@@ -6,6 +6,7 @@ import { buildTaskDraft, buildEventDraftItems, resolveEventTimeHints } from "@/l
 import { getExistingItems, formatExistingItemsForPrompt } from "@/lib/existingItems";
 import { buildExistingItemDrafts } from "@/lib/existingItemDrafts";
 import { getCurrentUser } from "@/lib/auth";
+import { apiErrorResponse } from "@/lib/apiError";
 
 export async function POST(request) {
   const user = await getCurrentUser();
@@ -17,10 +18,17 @@ export async function POST(request) {
     return NextResponse.json({ error: "내용을 입력해주세요." }, { status: 400 });
   }
 
-  const [userContext, existingItems] = await Promise.all([
-    getUserContext(user.id),
-    getExistingItems(user.id, user.refreshToken),
-  ]);
+  // getExistingItems는 구글 캘린더/할일을 읽는다 — 인증이 만료됐거나 권한이
+  // 모자라면 여기서 터지므로, 빈 500이 아니라 안내 문구가 담긴 JSON으로 돌려준다.
+  let userContext, existingItems;
+  try {
+    [userContext, existingItems] = await Promise.all([
+      getUserContext(user.id),
+      getExistingItems(user.id, user.refreshToken),
+    ]);
+  } catch (err) {
+    return apiErrorResponse(err);
+  }
 
   let parsedItems, uncertain, reason;
   try {

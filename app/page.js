@@ -3,6 +3,7 @@ import { listEvents } from "@/lib/googleCalendar";
 import { listTasksDueOn } from "@/lib/googleTasks";
 import { todayStr, addDays, formatKoreanDate, parseStartTime, formatMinutesAsTime } from "@/lib/dates";
 import { getCurrentUser } from "@/lib/auth";
+import { reauthMessageFor } from "@/lib/googleAuth";
 import TodayTaskList from "@/app/components/TodayTaskList";
 import MonthCalendar from "@/app/components/MonthCalendar";
 import { TaskDoneProvider } from "@/lib/taskDoneContext";
@@ -67,7 +68,8 @@ export default async function Home() {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
   } catch (err) {
-    error = err.message;
+    // 구글 인증/권한 문제면 영어 원문 대신 "다시 로그인해주세요" 안내를 보여준다.
+    error = reauthMessageFor(err) ?? err.message;
   }
 
   return (

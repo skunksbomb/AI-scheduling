@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/clientFetch";
+import { apiJson } from "@/lib/clientFetch";
 import { toDateStr, formatMinutesAsTime } from "@/lib/dates";
 import { useTaskDone } from "@/lib/taskDoneContext";
 
@@ -69,11 +69,9 @@ export default function MonthCalendar() {
     setLoading(true);
     setError(null);
 
-    apiFetch(`/api/calendar-month?year=${year}&month=${month}`)
-      .then((res) => res.json())
+    apiJson(`/api/calendar-month?year=${year}&month=${month}`)
       .then((data) => {
         if (cancelled) return;
-        if (data.error) throw new Error(data.error);
 
         const grouped = {};
         const add = (dateStr, item) => {

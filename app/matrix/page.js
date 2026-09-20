@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatMinutesAsTime } from "@/lib/dates";
-import { apiFetch } from "@/lib/clientFetch";
+import { apiFetch, apiJson } from "@/lib/clientFetch";
 import { useTasksStore } from "@/lib/tasksStore";
 
 function formatScheduled(task) {
@@ -40,8 +40,7 @@ export default function MatrixPage() {
     setRescheduling(true);
     setRescheduleMessage("");
     try {
-      const res = await apiFetch("/api/reschedule", { method: "POST" });
-      const data = await res.json();
+      const data = await apiJson("/api/reschedule", { method: "POST" });
       setTasks(data.tasks || []);
       setRescheduleMessage(
         data.rescheduled > 0
