@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server";
 import { getTasks, updateTask, deleteTaskRow } from "@/lib/store";
 import { completeTask, reopenTask, deleteTask as deleteGoogleTask } from "@/lib/googleTasks";
-import { syncIfStale } from "@/lib/sync";
+import { syncIfStale, syncWithGoogle } from "@/lib/sync";
 import { getCurrentUser } from "@/lib/auth";
 import { apiErrorResponse } from "@/lib/apiError";
 
 const SYNC_MAX_AGE_MINUTES = 30;
 
-export async function GET() {
+export async function GET(request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
+  // 평소엔 마지막 동기화가 오래됐을 때만 구글을 본다(매번 보면 매트릭스 진입이
+  // 느려짐). 구글 캘린더/할일에서 직접 고친 걸 지금 당장 확인하고 싶을 때만
+  // 매트릭스의 "지금 동기화" 버튼이 ?force=1로 이 제한을 건너뛴다.
+  const force = new URL(request.url).searchParams.get("force") === "1";
+
   try {
-    return NextResponse.json({ tasks: await syncIfStale(user.id, user.refreshToken, SYNC_MAX_AGE_MINUTES) });
+    const tasks = force
+      ? await syncWithGoogle(user.id, user.refreshToken)
+      : await syncIfStale(user.id, user.refreshToken, SYNC_MAX_AGE_MINUTES);
+    return NextResponse.json({ tasks });
   } catch (err) {
     return apiErrorResponse(err);
   }

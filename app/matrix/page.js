@@ -29,7 +29,8 @@ export default function MatrixPage() {
   const { tasks, loaded, setTasks, refresh } = useTasksStore();
   const loading = !loaded;
   const [rescheduling, setRescheduling] = useState(false);
-  const [rescheduleMessage, setRescheduleMessage] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const [confirmingId, setConfirmingId] = useState(null);
 
   useEffect(() => {
@@ -38,19 +39,34 @@ export default function MatrixPage() {
 
   async function handleReschedule() {
     setRescheduling(true);
-    setRescheduleMessage("");
+    setStatusMessage("");
     try {
       const data = await apiJson("/api/reschedule", { method: "POST" });
       setTasks(data.tasks || []);
-      setRescheduleMessage(
+      setStatusMessage(
         data.rescheduled > 0
           ? `${data.rescheduled}개 항목을 재배치했습니다.`
           : "재배치할 놓친 일정이 없습니다."
       );
     } catch (err) {
-      setRescheduleMessage("재배치 중 오류가 발생했습니다: " + err.message);
+      setStatusMessage("재배치 중 오류가 발생했습니다: " + err.message);
     } finally {
       setRescheduling(false);
+    }
+  }
+
+  // 구글 캘린더/할일에서 직접 지우거나 고친 건 평소엔 30분 주기 동기화를
+  // 기다려야 반영된다. 지금 당장 확인하고 싶을 때 그 제한을 건너뛴다.
+  async function handleSync() {
+    setSyncing(true);
+    setStatusMessage("");
+    try {
+      await refresh({ force: true });
+      setStatusMessage("구글과 동기화했습니다.");
+    } catch (err) {
+      setStatusMessage("동기화 중 오류가 발생했습니다: " + err.message);
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -90,18 +106,27 @@ export default function MatrixPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-6 py-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-zinc-900">아이젠하워 매트릭스</h1>
-        <button
-          onClick={handleReschedule}
-          disabled={rescheduling}
-          className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
-        >
-          {rescheduling ? "재배치 중..." : "놓친 일정 재배치"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing || rescheduling}
+            className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+          >
+            {syncing ? "동기화 중..." : "지금 동기화"}
+          </button>
+          <button
+            onClick={handleReschedule}
+            disabled={rescheduling || syncing}
+            className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-50"
+          >
+            {rescheduling ? "재배치 중..." : "놓친 일정 재배치"}
+          </button>
+        </div>
       </div>
-      {rescheduleMessage && (
-        <p className="text-xs text-zinc-500">{rescheduleMessage}</p>
+      {statusMessage && (
+        <p className="text-xs text-zinc-500">{statusMessage}</p>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {QUADRANTS.map((q) => {
