@@ -14,7 +14,9 @@ const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
 // 직접 읽는다 — "여기 뜬다" == "마감 이벤트가 실제로 존재한다"가 되도록.
 // (할 일만 지워지고 마감 이벤트는 남아있는 경우에도 계속 보여야 한다)
 const DEADLINE_PREFIX = "🔔 마감:";
-const UPCOMING_WINDOW_DAYS = 60;
+// 멀리 있는 마감까지 전부 깔아두면 정작 코앞에 닥친 게 안 보여서,
+// 오늘부터 5일 뒤까지(D-day ~ D-5)만 보여준다.
+const UPCOMING_WINDOW_DAYS = 5;
 
 // event.start/end.dateTime은 "+09:00" 오프셋이 붙은 KST 문자열이라, Date
 // 객체 없이 문자열에서 바로 시각을 읽는다 — 서버가 UTC로 도는 환경(Vercel)에서
@@ -55,7 +57,8 @@ export default async function Home() {
       listEvents(
         user.refreshToken,
         `${today}T00:00:00+09:00`,
-        `${addDays(today, UPCOMING_WINDOW_DAYS)}T00:00:00+09:00`
+        // timeMax는 미포함이라, D-5 당일 마감까지 걸리도록 하루 더 넓혀 조회한다.
+        `${addDays(today, UPCOMING_WINDOW_DAYS + 1)}T00:00:00+09:00`
       ),
     ]);
 
